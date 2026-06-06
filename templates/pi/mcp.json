@@ -1,0 +1,15 @@
+{
+  "settings": {
+    "toolPrefix": "server",
+    "idleTimeout": 10,
+    "directTools": false
+  },
+  "mcpServers": {
+    "codebase-memory-mcp": {
+      "command": "codebase-memory-mcp",
+      "args": [],
+      "lifecycle": "lazy",
+      "idleTimeout": 10
+    }
+  }
+}

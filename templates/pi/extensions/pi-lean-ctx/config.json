@@ -1,0 +1,7 @@
+{
+  "mode": "additive",
+  "enableMcp": true,
+  "env": {
+    "LEAN_CTX_COMPRESSION": "balanced"
+  }
+}

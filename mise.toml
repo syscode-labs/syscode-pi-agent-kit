@@ -15,11 +15,13 @@ run = [
 [tasks.install-local]
 description = "Install generated Pi configuration into this checkout"
 run = """
-mkdir -p .pi/agents .pi/skills .agents/skills
+mkdir -p .pi/agents .pi/skills .pi/extensions .agents/skills
 cp -R templates/pi/agents/. .pi/agents/
 cp -R templates/pi/skills/. .pi/skills/
+cp -R templates/pi/extensions/. .pi/extensions/
 cp templates/pi/settings.json .pi/settings.json
 cp templates/pi/AGENTS.md .pi/AGENTS.md
+cp templates/pi/mcp.json .pi/mcp.json
 """
 
 [tasks.doctor]
@@ -123,6 +125,10 @@ find . -maxdepth 6 \
   -path './.specstory' -prune -o \
   -type f -print | sort
 """
+
+[tasks.test]
+description = "Run repository tests"
+run = "bash tests/context-profile.sh"
 
 [tasks.audit-public]
 description = "Scan committed content and history for public-repository leaks"

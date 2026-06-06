@@ -1,9 +1,27 @@
 {
+  "npmCommand": [
+    "mise",
+    "exec",
+    "node@24.14.1",
+    "--",
+    "npm"
+  ],
+  "sessionDir": ".pi/sessions",
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 16384,
+    "keepRecentTokens": 20000
+  },
+  "packages": [
+    "npm:pi-lean-ctx@3.7.5",
+    "npm:pi-mcp-adapter@2.9.0"
+  ],
   "skills": [
     "~/.pi/agent/skills",
     "~/.codex/skills",
     "~/.codex/superpowers/skills",
     ".agents/skills",
     ".pi/skills"
-  ]
+  ],
+  "enableSkillCommands": true
 }
