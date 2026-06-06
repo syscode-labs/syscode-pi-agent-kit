@@ -1,0 +1,140 @@
+[tools]
+node = "24.14.1"
+"npm:@earendil-works/pi-coding-agent" = "0.75.5"
+"npm:@clipboard-health/groundcrew" = "4.10.4"
+
+[tasks.bootstrap]
+description = "Provision managed tools, Pi extensions, and local scaffold files"
+run = [
+  "mise install",
+  "mise run install-local",
+  "pi install -l npm:pi-sub-agent",
+  "mise run doctor",
+]
+
+[tasks.install-local]
+description = "Install generated Pi configuration into this checkout"
+run = """
+mkdir -p .pi/agents .pi/skills .agents/skills
+cp -R templates/pi/agents/. .pi/agents/
+cp -R templates/pi/skills/. .pi/skills/
+cp templates/pi/settings.json .pi/settings.json
+cp templates/pi/AGENTS.md .pi/AGENTS.md
+"""
+
+[tasks.doctor]
+description = "Report required and optional tool availability"
+run = """
+#!/usr/bin/env bash
+set -uo pipefail
+
+failed=0
+for tool in mise node npm git rg jq tmux curl pi crew; do
+  if command -v "$tool" >/dev/null 2>&1; then
+    printf 'ok       %s\n' "$tool"
+  else
+    printf 'missing  %s\n' "$tool"
+    failed=1
+  fi
+done
+
+node_version="$(node --version 2>/dev/null || true)"
+npm_version="$(npm --version 2>/dev/null || true)"
+if [ "$node_version" != "v24.14.1" ]; then
+  printf 'wrong    node %s (required v24.14.1)\n' "$node_version"
+  failed=1
+fi
+case "$npm_version" in
+  11.11.*) ;;
+  *)
+    printf 'wrong    npm %s (required ~11.11.0)\n' "$npm_version"
+    failed=1
+    ;;
+esac
+
+for tool in safehouse specstory; do
+  if command -v "$tool" >/dev/null 2>&1; then
+    printf 'ok       %s\n' "$tool"
+  else
+    printf 'optional %s\n' "$tool"
+  fi
+done
+
+if [ "$(uname -s)" != "Darwin" ]; then
+  printf 'optional safehouse requires macOS; use a VM/container boundary on this host\n'
+fi
+
+exit "$failed"
+"""
+
+[tasks.doctor-safehouse]
+description = "Require Safehouse before starting a sandboxed agent"
+run = """
+test "$(uname -s)" = "Darwin" || {
+  echo "safehouse requires macOS" >&2
+  exit 1
+}
+command -v safehouse >/dev/null 2>&1 || {
+  echo "safehouse is required. Enter through nix develop or devbox shell." >&2
+  exit 1
+}
+"""
+
+[tasks.doctor-specstory]
+description = "Require SpecStory before starting a captured agent session"
+run = """
+command -v specstory >/dev/null 2>&1 || {
+  echo "specstory is required. Enter through nix develop or devbox shell." >&2
+  exit 1
+}
+"""
+
+[tasks.pi]
+description = "Run Pi directly in the current repository"
+run = "pi"
+
+[tasks.pi-safe]
+description = "Run Pi through Safehouse"
+depends = ["doctor-safehouse"]
+run = "safehouse pi"
+
+[tasks.pi-story]
+description = "Run Pi through Safehouse with SpecStory capture"
+depends = ["doctor-safehouse", "doctor-specstory"]
+run = "specstory run safehouse pi"
+
+[tasks.pi-story-alt]
+description = "Alternate wrapper order if SpecStory cannot capture nested Safehouse"
+depends = ["doctor-safehouse", "doctor-specstory"]
+run = "safehouse specstory run pi"
+
+[tasks.groundcrew-pi]
+description = "Run Groundcrew watch mode for ticket-dispatched agent sessions"
+run = "crew run --watch"
+
+[tasks.check]
+description = "Validate scaffold files"
+run = """
+find . -maxdepth 6 \
+  -path './.git' -prune -o \
+  -path './.devbox' -prune -o \
+  -path './.pi' -prune -o \
+  -path './.agents' -prune -o \
+  -path './.specstory' -prune -o \
+  -type f -print | sort
+"""
+
+[tasks.audit-public]
+description = "Scan committed content and history for public-repository leaks"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+
+home_path_pattern='/'"Users/"'[^/]+/|/'"home/"'[^/]+/'
+if git grep -n -I -E "$home_path_pattern" HEAD; then
+  echo "machine-specific home path found in committed content" >&2
+  exit 1
+fi
+
+gitleaks git --no-banner --redact .
+"""

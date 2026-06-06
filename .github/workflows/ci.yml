@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  nix:
+    name: Nix (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@v3
+
+      - name: Evaluate flake
+        run: nix flake check --no-build
+
+      - name: Audit public repository
+        run: nix develop --command mise run audit-public
+
+      - name: Build SpecStory
+        run: nix build .#specstory
+
+      - name: Build Safehouse
+        if: runner.os == 'macOS'
+        run: nix build .#safehouse
+
+      - name: Bootstrap Pi toolchain
+        run: nix develop --command mise run bootstrap
+
+      - name: Verify environment
+        run: nix develop --command mise run doctor
+
+      - name: Verify SpecStory
+        run: nix develop --command specstory version
+
+      - name: Verify Safehouse
+        if: runner.os == 'macOS'
+        run: nix develop --command safehouse --version
+
+  devbox:
+    name: Devbox
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install Devbox
+        uses: jetify-com/devbox-install-action@v0.14.0
+
+      - name: Bootstrap Pi toolchain
+        run: devbox run -- mise run bootstrap
+
+      - name: Verify environment
+        run: devbox run -- mise run doctor
+
+      - name: Verify SpecStory
+        run: devbox run -- specstory version

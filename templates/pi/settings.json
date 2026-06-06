@@ -1,0 +1,9 @@
+{
+  "skills": [
+    "~/.pi/agent/skills",
+    "~/.codex/skills",
+    "~/.codex/superpowers/skills",
+    ".agents/skills",
+    ".pi/skills"
+  ]
+}
