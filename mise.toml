@@ -11,9 +11,31 @@ description = "Provision managed tools, Pi extensions, and local scaffold files"
 run = [
   "mise install",
   "mise run install-local",
+  "mise run install-skills",
   "pi install -l npm:pi-sub-agent",
   "mise run doctor",
 ]
+
+[tasks.install-skills]
+description = "Pull latest syscode-agentic-skills into .pi/skills/"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+skills_repo="https://github.com/syscode-labs/syscode-agentic-skills.git"
+skills_cache="${XDG_CACHE_HOME:-$HOME/.cache}/syscode-agentic-skills"
+if [ -d "$skills_cache/.git" ]; then
+  git -C "$skills_cache" pull --ff-only --quiet
+else
+  git clone --depth 1 --quiet "$skills_repo" "$skills_cache"
+fi
+mkdir -p .pi/skills
+for skill_dir in "$skills_cache"/skills/*/; do
+  skill_name="$(basename "$skill_dir")"
+  cp -r "$skill_dir" ".pi/skills/$skill_name"
+done
+count="$(find "$skills_cache/skills" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')"
+printf 'installed %s skills from syscode-agentic-skills\n' "$count"
+'''
 
 [tasks.install-local]
 description = "Install generated Pi configuration into this checkout"
