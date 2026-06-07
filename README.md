@@ -1,14 +1,22 @@
 # syscode-pi-agent-kit
 
-[![CI](https://github.com/syscod3/syscode-pi-agent-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/syscod3/syscode-pi-agent-kit/actions/workflows/ci.yml)
+[![CI](https://github.com/syscode-labs/syscode-pi-agent-kit/actions/workflows/ci.yml/badge.svg)](https://github.com/syscode-labs/syscode-pi-agent-kit/actions/workflows/ci.yml)
 [![mise](https://img.shields.io/badge/mise-managed-5C4EE5)](https://mise.jdx.dev)
 [![pi](https://img.shields.io/badge/pi-0.75.5-blue)](https://earendil.works)
-[![experimental](https://img.shields.io/badge/status-experimental-orange)](https://github.com/syscod3/syscode-pi-agent-kit)
+[![experimental](https://img.shields.io/badge/status-experimental-orange)](https://github.com/syscode-labs/syscode-pi-agent-kit)
 
 > **Experimental.** This kit is a personal research scaffold — nothing here is
 > stable, production-ready, or guaranteed to work. Tool versions change, upstream
 > APIs break, and entire subsystems may be replaced or removed without notice.
 > Use it as a starting point or for inspiration, not as a reliable foundation.
+
+**In plain terms:** this repo is a ready-to-use setup that lets you run an AI
+coding agent (Pi) on your laptop, powered by your existing ChatGPT Plus
+subscription — no extra API costs. It wires up a small stack of tools that
+compress what the AI reads and writes so it uses fewer tokens per task, making
+sessions cheaper and faster. Everything is pinned to specific versions and
+installed with a single command, so the environment is reproducible across
+machines.
 
 Scaffold for making Pi behave like the current Claude/Codex workflow:
 
