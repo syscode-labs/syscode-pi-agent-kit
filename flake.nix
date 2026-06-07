@@ -32,6 +32,47 @@
             runHook postInstall
           '';
         };
+      leanCtxFor =
+        system: pkgs:
+        let
+          release = {
+            aarch64-darwin = {
+              asset = "lean-ctx-aarch64-apple-darwin.tar.gz";
+              hash = "sha256-v6V/tzM5begn6w94JDv+j64kVSZ9TxExH/NdQxjiPXc=";
+            };
+            x86_64-darwin = {
+              asset = "lean-ctx-x86_64-apple-darwin.tar.gz";
+              hash = "sha256-b0dRvGLUpy3jPH/k/xA2GufOqaTIbbzhBj10+bpTtTY=";
+            };
+            aarch64-linux = {
+              asset = "lean-ctx-aarch64-unknown-linux-gnu.tar.gz";
+              hash = "sha256-BOl9x9H7cfbeiWGMTckEleQe3l98egrlBiKjGOpas9k=";
+            };
+            x86_64-linux = {
+              asset = "lean-ctx-x86_64-unknown-linux-gnu.tar.gz";
+              hash = "sha256-xYav5kEUFCuuNgtcJ/NhjS++T4K6Sz4GQglvM7Jo5NM=";
+            };
+          }.${system};
+        in
+        pkgs.stdenvNoCC.mkDerivation {
+          pname = "lean-ctx";
+          version = "3.7.5";
+
+          src = pkgs.fetchurl {
+            url = "https://github.com/yvgude/lean-ctx/releases/download/v3.7.5/${release.asset}";
+            inherit (release) hash;
+          };
+
+          dontUnpack = true;
+
+          installPhase = ''
+            runHook preInstall
+            tar -xzf "$src" lean-ctx
+            install -Dm755 lean-ctx "$out/bin/lean-ctx"
+            runHook postInstall
+          '';
+        };
+
       specstoryFor =
         system: pkgs:
         let
@@ -85,6 +126,7 @@
         {
           safehouse = safehouseFor pkgs;
           specstory = specstoryFor system pkgs;
+          lean-ctx = leanCtxFor system pkgs;
         }
       );
 
@@ -106,6 +148,7 @@
               tmux
               (safehouseFor pkgs)
               (specstoryFor system pkgs)
+              (leanCtxFor system pkgs)
             ];
 
             shellHook = ''

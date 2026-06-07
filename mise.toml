@@ -1,7 +1,10 @@
 [tools]
 node = "24.14.1"
+python = "3.13"
 "npm:@earendil-works/pi-coding-agent" = "0.75.5"
 "npm:@clipboard-health/groundcrew" = "4.10.4"
+"npm:@openai/codex" = "0.137.0"
+"github:yvgude/lean-ctx" = "3.7.5"
 
 [tasks.bootstrap]
 description = "Provision managed tools, Pi extensions, and local scaffold files"
@@ -15,7 +18,9 @@ run = [
 [tasks.install-local]
 description = "Install generated Pi configuration into this checkout"
 run = """
-mkdir -p .pi/agents .pi/skills .pi/extensions .agents/skills
+mkdir -p .pi .agents/skills
+rm -rf .pi/agents .pi/skills .pi/extensions
+mkdir -p .pi/agents .pi/skills .pi/extensions
 cp -R templates/pi/agents/. .pi/agents/
 cp -R templates/pi/skills/. .pi/skills/
 cp -R templates/pi/extensions/. .pi/extensions/
@@ -31,7 +36,7 @@ run = """
 set -uo pipefail
 
 failed=0
-for tool in mise node npm git rg jq tmux curl pi crew; do
+for tool in mise node npm git rg jq tmux curl pi crew codex; do
   if command -v "$tool" >/dev/null 2>&1; then
     printf 'ok       %s\n' "$tool"
   else
@@ -91,6 +96,183 @@ command -v specstory >/dev/null 2>&1 || {
 }
 """
 
+[tasks.bootstrap-context]
+description = "Install project-local Pi context packages"
+run = '''
+set -euo pipefail
+pi install -l npm:pi-lean-ctx@3.7.5
+pi install -l npm:pi-mcp-adapter@2.9.0
+'''
+
+[tasks.install-context-mode-profile]
+description = "Install experimental Context Mode profile instead of LeanCTX"
+run = '''
+set -euo pipefail
+echo "Experimental profile: do not use together with pi-lean-ctx default profile."
+pi install -l npm:context-mode@1.0.162
+'''
+
+[tasks.install-caveman]
+description = "Install optional Pi output-token compressor"
+run = '''
+set -euo pipefail
+pi install -l npm:pi-caveman@1.0.7
+'''
+
+[tasks.bootstrap-docmancer]
+description = "Install and initialise Docmancer"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+command -v python3.13 >/dev/null 2>&1 || {
+  echo "python3.13 not found. Run: mise install" >&2
+  exit 1
+}
+python3.13 -m pip install --user pipx
+python3.13 -m pipx ensurepath
+python3.13 -m pipx install docmancer --python python3.13
+docmancer setup
+'''
+
+[tasks.docmancer-query]
+description = "Query indexed documentation"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+if [ "$#" -eq 0 ]; then
+  echo "usage: mise run docmancer-query -- '<question>'" >&2
+  exit 2
+fi
+docmancer query "$*" --mode hybrid --explain
+'''
+
+[tasks.docmancer-add]
+description = "Add a documentation site to Docmancer"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+: "${DOCS_URL:?set DOCS_URL, e.g. DOCS_URL=https://docs.pytest.org}"
+docmancer add "$DOCS_URL"
+'''
+
+[tasks.docmancer-ingest]
+description = "Ingest local documentation into Docmancer"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+docmancer ingest "${DOCS_PATH:-./docs}"
+'''
+
+[tasks.doctor-docmancer]
+description = "Check Docmancer availability"
+run = '''
+set -euo pipefail
+command -v docmancer >/dev/null
+docmancer --version
+'''
+
+[tasks.lean-ctx-daemon]
+description = "Start lean-ctx daemon for full per-tool-call tracking"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+command -v lean-ctx >/dev/null 2>&1 || { echo "lean-ctx not found; run: mise install" >&2; exit 1; }
+lean-ctx serve -d
+echo "lean-ctx daemon started — per-tool-call metrics now available"
+'''
+
+[tasks.push-leanctx-metrics]
+description = "Push latest lean-ctx savings metrics to Prometheus Pushgateway (set METRICS_PUSH_URL)"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+: "${METRICS_PUSH_URL:?set METRICS_PUSH_URL, e.g. METRICS_PUSH_URL=http://pushgateway:9091}"
+command -v lean-ctx >/dev/null 2>&1 || { echo "lean-ctx not found; run: mise install" >&2; exit 1; }
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "$tmpdir"' EXIT
+lean-ctx gain --json > "$tmpdir/leanctx-after.json"
+SESSION="${SESSION:-pi-leanctx}" REPO="$(basename "$(pwd)")" \
+  python3 scripts/leanctx-to-prom.py < "$tmpdir/leanctx-after.json" | tee "$tmpdir/metrics.prom"
+curl -sf --data-binary @"$tmpdir/metrics.prom" \
+  "${METRICS_PUSH_URL}/metrics/job/pi-agent-kit/instance/${SESSION:-pi-leanctx}"
+printf 'pushed to %s\n' "$METRICS_PUSH_URL"
+'''
+
+[tasks.leanctx-gain]
+description = "Show LeanCTX token-savings dashboard"
+run = '''
+set -euo pipefail
+lean-ctx gain --deep || lean-ctx gain || true
+'''
+
+[tasks.leanctx-gain-json]
+description = "Export LeanCTX token-savings metrics as JSON"
+run = '''
+set -euo pipefail
+mkdir -p .pi/metrics
+lean-ctx gain --json > .pi/metrics/leanctx-gain.json
+echo ".pi/metrics/leanctx-gain.json"
+'''
+
+[tasks.doctor-leanctx]
+description = "Check LeanCTX binary and Pi package wiring"
+run = '''
+#!/usr/bin/env bash
+set -uo pipefail
+if command -v lean-ctx >/dev/null 2>&1; then
+  printf 'ok       lean-ctx\n'
+  lean-ctx --version
+  lean-ctx doctor || true
+else
+  printf 'missing  lean-ctx\n'
+  printf '         install: mise install\n'
+  exit 1
+fi
+'''
+
+[tasks.index-codebase-memory]
+description = "Index this repository into the Codebase Memory MCP knowledge graph"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+command -v codebase-memory-mcp >/dev/null 2>&1 || {
+  printf 'codebase-memory-mcp not installed.\n' >&2
+  printf 'install: https://github.com/DeusData/codebase-memory-mcp/releases\n' >&2
+  exit 1
+}
+repo_path="$(pwd)"
+codebase-memory-mcp cli index_repository "{\"repo_path\": \"$repo_path\"}"
+'''
+
+[tasks.doctor-codex]
+description = "Check Codex CLI availability and version"
+run = '''
+#!/usr/bin/env bash
+set -uo pipefail
+if command -v codex >/dev/null 2>&1; then
+  printf 'ok       codex\n'
+  codex --version || true
+else
+  printf 'missing  codex\n'
+  printf '         install: mise install\n'
+  exit 1
+fi
+'''
+
+[tasks.doctor-codebase-memory]
+description = "Check Codebase Memory MCP binary availability"
+run = '''
+#!/usr/bin/env bash
+set -uo pipefail
+if command -v codebase-memory-mcp >/dev/null 2>&1; then
+  printf 'ok       codebase-memory-mcp\n'
+  codebase-memory-mcp --version || true
+else
+  printf 'optional codebase-memory-mcp  (not installed; structural graph queries unavailable)\n'
+  printf '         install: https://github.com/DeusData/codebase-memory-mcp/releases\n'
+fi
+'''
+
 [tasks.pi]
 description = "Run Pi directly in the current repository"
 run = "pi"
@@ -129,6 +311,10 @@ find . -maxdepth 6 \
 [tasks.test]
 description = "Run repository tests"
 run = "bash tests/context-profile.sh"
+
+[tasks.test-e2e]
+description = "Compare plain claude vs Pi+lean-ctx session (costs tokens; requires auth)"
+run = "bash tests/e2e-compare.sh"
 
 [tasks.audit-public]
 description = "Scan committed content and history for public-repository leaks"

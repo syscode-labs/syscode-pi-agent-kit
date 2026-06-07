@@ -45,3 +45,19 @@ test -f .pi/skills/docmancer/SKILL.md
 test -f .pi/extensions/pi-lean-ctx/config.json
 
 echo "context profile scaffold: ok"
+
+# install-local removes stale template-managed files
+touch .pi/skills/stale-canary.md
+mise run install-local >/dev/null
+test ! -f .pi/skills/stale-canary.md
+
+# doctor-codebase-memory uses soft-fail: must report 'optional' not hard-exit
+grep -q "printf 'optional codebase-memory-mcp" mise.toml
+
+# bootstrap-docmancer: pipx install line must not be followed by || true
+grep 'pipx install docmancer' mise.toml | grep -qv '|| true'
+
+# doctor-leanctx: must print mise install hint
+grep -q 'mise install' mise.toml
+
+echo "task behaviour checks: ok"

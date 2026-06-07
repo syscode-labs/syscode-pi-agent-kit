@@ -23,5 +23,7 @@
     ".agents/skills",
     ".pi/skills"
   ],
-  "enableSkillCommands": true
+  "enableSkillCommands": true,
+  "defaultProvider": "openai-codex",
+  "defaultModel": "gpt-5.5"
 }

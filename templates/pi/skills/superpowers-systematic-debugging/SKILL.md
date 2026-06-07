@@ -1,3 +1,8 @@
+---
+name: superpowers-systematic-debugging
+description: Use when encountering a bug, test failure, unexpected behavior, or unclear root cause.
+---
+
 # superpowers-systematic-debugging
 
 Use this when encountering a bug, test failure, unexpected behavior, or unclear
