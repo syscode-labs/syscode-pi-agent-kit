@@ -50,8 +50,10 @@ mise run bootstrap
 ```
 
 This runs `mise install` (which pulls pinned versions of Node, Pi, Codex CLI,
-lean-ctx, and Groundcrew), installs Pi extensions for context compression, and
-copies the project configuration into `.pi/`.
+lean-ctx, and Groundcrew), pulls the latest skills from
+[syscode-agentic-skills](https://github.com/syscode-labs/syscode-agentic-skills)
+into `.pi/skills/`, installs Pi extensions for context compression, and copies
+the project configuration into `.pi/`.
 
 ### 3. Log in to ChatGPT Plus
 
